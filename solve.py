@@ -1,6 +1,7 @@
 from typing import Mapping, Sequence, Any
 from z3 import Int, Bool, sat, And, Implies, Solver, Not, Or, is_true, Then
 from networkx import max_weight_matching, Graph
+from itertools import product
 import time
 import json
 
@@ -272,8 +273,9 @@ class DPQA:
             r: Sequence[Sequence[Any]],
     ):
         for q in range(self.n_q):
-            for s in range(num_stage):
-                # starting from s=1 since the values with s=0 are loaded
+            for s in range(1, num_stage):
+                # this should in fact start from 1, assume at stage s=0 that given circuit is within spatial constraints
+                # starting from s=1 since the values with s=0 are loaded.
                 (self.dpqa).add(x[q][s] >= 0)
                 (self.dpqa).add(x[q][s] < self.n_x)
                 (self.dpqa).add(y[q][s] >= 0)
@@ -329,16 +331,14 @@ class DPQA:
             c: Sequence[Sequence[Any]],
             r: Sequence[Sequence[Any]],
     ):
-        for q in range(self.n_q):
-            for qq in range(self.n_q):
-                for s in range(num_stage-1):
-                    if q != qq:
-                        (self.dpqa).add(
-                            Implies(And(a[q][s], a[qq][s], c[q][s] < c[qq][s]),
-                                    x[q][s+1] <= x[qq][s+1]))
-                        (self.dpqa).add(
-                            Implies(And(a[q][s], a[qq][s], r[q][s] < r[qq][s]),
-                                    y[q][s+1] <= y[qq][s+1]))
+        for q, qq, s in product(range(self.n_q), range(self.n_q), range(num_stage-1)):
+            if q != qq:
+                (self.dpqa).add(
+                    Implies(And(a[q][s], a[qq][s], c[q][s] < c[qq][s]),
+                            x[q][s+1] <= x[qq][s+1]))
+                (self.dpqa).add(
+                    Implies(And(a[q][s], a[qq][s], r[q][s] < r[qq][s]),
+                            y[q][s+1] <= y[qq][s+1]))
 
     def constraint_slm_order_from_aod(
             self,
@@ -350,16 +350,14 @@ class DPQA:
             r: Sequence[Sequence[Any]],
     ):
         # row/col constraints when atom transfer from SLM to AOD
-        for q in range(self.n_q):
-            for qq in range(self.n_q):
-                for s in range(num_stage):
-                    if q != qq:
-                        (self.dpqa).add(
-                            Implies(And(a[q][s], a[qq][s], x[q][s] < x[qq][s]),
-                                    c[q][s] < c[qq][s]))
-                        (self.dpqa).add(
-                            Implies(And(a[q][s], a[qq][s], y[q][s] < y[qq][s]),
-                                    r[q][s] < r[qq][s]))
+        for q, qq, s in product(range(self.n_q), range(self.n_q), range(num_stage)):
+            if q != qq:
+                (self.dpqa).add(
+                    Implies(And(a[q][s], a[qq][s], x[q][s] < x[qq][s]),
+                            c[q][s] < c[qq][s]))
+                (self.dpqa).add(
+                    Implies(And(a[q][s], a[qq][s], y[q][s] < y[qq][s]),
+                            r[q][s] < r[qq][s]))
 
     def constraint_aod_crowding(
             self,
@@ -371,22 +369,20 @@ class DPQA:
             r: Sequence[Sequence[Any]],
     ):
         # not too many AOD columns/rows can be together, default 3
-        for q in range(self.n_q):
-            for qq in range(self.n_q):
-                for s in range(num_stage-1):
-                    if q != qq:
-                        (self.dpqa).add(
-                            Implies(And(
-                                a[q][s],
-                                a[qq][s],
-                                c[q][s]-c[qq][s] > self.row_per_site - 1),
-                                x[q][s+1] > x[qq][s+1]))
-                        (self.dpqa).add(
-                            Implies(And(
-                                a[q][s],
-                                a[qq][s],
-                                r[q][s]-r[qq][s] > self.row_per_site - 1),
-                                y[q][s+1] > y[qq][s+1]))
+        for q, qq, s in product(range(self.n_q), range(self.n_q), range(num_stage-1)):
+            if q != qq:
+                (self.dpqa).add(
+                    Implies(And(
+                        a[q][s],
+                        a[qq][s],
+                        c[q][s]-c[qq][s] > self.row_per_site - 1),
+                        x[q][s+1] > x[qq][s+1]))
+                (self.dpqa).add(
+                    Implies(And(
+                        a[q][s],
+                        a[qq][s],
+                        r[q][s]-r[qq][s] > self.row_per_site - 1),
+                        y[q][s+1] > y[qq][s+1]))
 
     def constraint_aod_crowding_init(
             self,
@@ -505,7 +501,7 @@ class DPQA:
                     (self.dpqa).add(x[q][0] == vars[q]['x'])
                 if 'y' in vars[q]:
                     (self.dpqa).add(y[q][0] == vars[q]['y'])
-            # virtually putting everything down to acillary SLMs
+            # virtually putting everything down to ancillary SLMs
             # let solver pick some qubits to AOD, so we don't set a_q,0
             # we also don't set c_q,0 and r_q,0, but enforce ordering when
             # two qubits are both in AOD last round, i.e., don't swap
@@ -534,7 +530,7 @@ class DPQA:
         if self.all_commutable:
             for collision in self.collisions:
                 (self.dpqa).add(Or(t[collision[0]] != t[collision[1]],
-                                   t[collision[0]] == 0, t[collision[0]] == 0))
+                                   t[collision[0]] == 0, t[collision[0]] == 0)) # What is the point of this additional condition?
                 # stage0 is the 'trash can' for gates where we don't impose
                 # connectivity, so if a gate is in stage0, we can ignore all
                 # its collisions. If both gates are not in stage0, we impose.
