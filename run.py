@@ -4,6 +4,7 @@ import json
 
 with open('./graphs.json', 'r') as f:
     graphs = json.load(f)
+# print(graphs)
 parser = argparse.ArgumentParser()
 parser.add_argument('size', metavar='S', type=int, help='#qubit in graph.')
 parser.add_argument('id', metavar='I', type=int, help='index of the graph.')

@@ -31,8 +31,9 @@ class Operation():
         self.attribute = attribute
 
 class Block():
-    def __init__(self, atoms, attribute):
-        self.num_qubits = len(atoms)
+    def __init__(self, atoms=None, attribute=None):
+        if atoms is not None:
+            self.num_qubits = len(atoms)
         self.atoms = atoms
         self.operations = []
         self.attribute = attribute
@@ -49,6 +50,26 @@ class Block():
         for i, atom in enumerate(atoms1):
             self.operations.append(Operation([atom, atoms2[i]], 'ent'))
         assert self.attribute == 'ent', 'this block must contain only entangling operations'
+
+    def from_qiskit(self, qc, atoms):
+        '''
+        atoms[i] correspond to qubit with index i in qc
+        '''
+        self.__init__(atoms, attribute=None)
+        for instruction in qc.data:
+            if instruction.operation.num_qubits == 1:
+                if self.attribute == 'ent':
+                    raise Exception('this block contains only entangling operations')
+                self.attribute = 'rot'
+                self.rotate(atoms=atoms[instruction.qubits[0]._index])
+            elif instruction.operation.num_qubits == 2:
+                if self.attribute == 'rot':
+                    raise Exception('this block contains only rotating operations')
+                self.attribute = 'ent'
+                self.entangle(atoms1=[atoms[instruction.qubits[0]._index]], atoms2=[atoms[instruction.qubits[1]._index]])
+
+        assert qc.depth() == 1, 'block must be of depth 1'
+        return self
 
     def organize_for_visualization(self):
         if self.attribute == 'ent':
