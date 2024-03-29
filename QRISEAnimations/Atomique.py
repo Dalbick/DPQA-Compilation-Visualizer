@@ -3,6 +3,30 @@ from AnimationUtils import gates_animation, multiple_shuttle_animation
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 import os
 import shutil
+import json
+
+
+def load_json(filepath):
+    with open(filepath, 'r') as file:
+        return json.load(file)
+
+def create_circuit_from_json(json_data):
+    blocks = []
+    for layer in json_data['layers']:
+        atoms = [Atom(coords=(q['x'], q['y']), column=q['c'], row=q['r'], name=str(q['id'])) for q in layer['qubits']]
+        if 'gates' in layer:
+            for gate in layer['gates']:
+                q0 = next(atom for atom in atoms if atom.name == str(gate['q0']))
+                q1 = next(atom for atom in atoms if atom.name == str(gate['q1']))
+                # assuming gate represents ent
+                block = Block(atoms=[q0, q1], attribute='ent')
+                block.entangle([q0], [q1])
+                blocks.append(block)
+        else:
+            #case with no gates or smth else
+            pass
+        return QCircuit(blocks)
+
 
 class Atom():
     def __init__(self, coords, name=None):
