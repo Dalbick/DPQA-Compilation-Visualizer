@@ -34,6 +34,8 @@ class Atom():
         self.init_coords = np.array(coords)
         self.x = coords[0]
         self.y = coords[1]
+        self.row = row
+        self.column = column
         self.name = name
 
     def distance(self, other):
