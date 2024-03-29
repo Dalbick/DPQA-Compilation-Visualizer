@@ -29,7 +29,7 @@ def create_circuit_from_json(json_data):
 
 
 class Atom():
-    def __init__(self, coords, name=None):
+    def __init__(self, coords, column=None, row=None, name=None):
         self.coords = np.array(coords)
         self.init_coords = np.array(coords)
         self.x = coords[0]
