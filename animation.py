@@ -2,12 +2,13 @@ from matplotlib.animation import FFMpegWriter, FuncAnimation
 from typing import Sequence, Mapping, Any, Union
 from raman import rx, ry, rz
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import json
 import matplotlib
 import networkx as nx
 import argparse
 from abc import ABC, abstractmethod
-
+import copy
 
 
 # physics constants
@@ -33,6 +34,13 @@ PT_MICRON = 8  # scaling factor: points per micron
 MUS_PER_FRM = 8  # microseconds per frame
 T_RYDBERG = 0.15  # microseconds for Rydberg
 T_ACTIVATE = 50  # microseconds for (de)activating AOD
+
+# constants for circuit animation
+RECTANGLE_TOP = 50 # rectangele top padding
+RECTANGLE_LEFT = 150 # rectangle initial left padding
+STAGE_WIDTH = 100 # width between two consecutive barriers
+QUBIT_HEIGHT = 50 # height that each qubit adds to the circuit
+ADDITIONAL_HEIGHT = 30 # rectangle height for 0-qubit circuit
 
 
 # class for physical entities: qubits and AOD rows/cols
@@ -857,7 +865,7 @@ class Raman(Inst):
         qubit_objs: Sequence[Qubit],
         gate: Mapping[str, int | str],
     ):
-        super().__init__("Raman", prefix=f'Raman_{s}_{gate["q0"]}', stage=s)
+        super().__init__("Raman", prefix=f'Raman_{s}_{gate["q0"]}_{gate["op"]}', stage=s)
         self.verify(gate, qubit_objs)
         params = self.compute_parameters(gate)
         super().write_code(col_objs, row_objs, qubit_objs, {"gate": gate} | params)
@@ -869,13 +877,21 @@ class Raman(Inst):
     # decomposes a single-qubit rotation into parameters for the architechture
     @staticmethod
     def compute_parameters(gate: Mapping[str, int | str]) -> dict[str, int | float]:
-        param = rx(gate) if gate['op'] == 'rx' else ry(gate) if gate['op'] == 'ry' else rz(gate) if gate['op'] == 'rz' else (0, 0, [0,0])
-        print(param[0])
-        return {"duration": param[0],
-                "angle": param[1],
-                "rabi_max": param[2][0],
-                "detuning_max": param[2][1]
-                }
+        param = (
+            rx(gate)
+            if gate["op"] == "rx"
+            else (
+                ry(gate)
+                if gate["op"] == "ry"
+                else rz(gate) if gate["op"] == "rz" else (0, 0, [0, 0])
+            )
+        )
+        return {
+            "raman_duration": param[0],
+            "angle": param[1],
+            "rabi_max": param[2][0],
+            "detuning_max": param[2][1],
+        }
 
 
 # class for big ops: ReloadRow, Reload, OffloadRow, Offload, SwapPair, Swap
@@ -1430,8 +1446,9 @@ class CodeGen:
     corresponding to a DPQA instruction defined above.
     """
 
-    def __init__(self, file_name: str, no_transfer: bool = False, dir: str = None):
-        self.read_compiled(file_name)
+    def __init__(self, file_name: str, data: dict, no_transfer: bool = False, dir: str = None, steane: bool = False):
+        self.steane = steane
+        self.read_compiled(data)
         program = self.builder(no_transfer)
 
         if not dir:
@@ -1444,10 +1461,10 @@ class CodeGen:
         with open(self.code_full_file.replace("_code_full", "_code"), "w") as f:
             json.dump(program.emit(), f)
 
-    def read_compiled(self, compiled_file: str):
-        with open(compiled_file, "r") as f:
-            data = json.load(f)
+    def read_compiled(self, data: dict):
         self.n_q = data["n_q"]
+        if self.steane == "init":
+            self.n_q *= 14
         self.x_high = data["n_x"]
         self.y_high = data["n_y"]
         self.c_high = data["n_c"]
@@ -1469,7 +1486,7 @@ class CodeGen:
            Rydberg_0  (special)  <------- x/y_0
            
            Swap_1 (optional)  <---. 
-           Reload_1  <----------\  \ 
+           Reload_1  <---------- 
            BigMove_1  <--------- a/c/r_1
            Offload_1  <---------/ 
            Rydberg_1  <----------- x/y_1
@@ -1503,7 +1520,7 @@ class CodeGen:
             # - what qubits are in this row 'qs'
             # similar for each AOD column
             for i, q in enumerate(layer["qubits"]):
-                if layer["qubits"][i]["a"]:
+                if layer["qubits"][i]["a"] and isinstance(q["r"], int):
                     layer["row"][q["r"]]["y_begin"] = prev_layer["qubits"][i]["y"]
                     layer["row"][q["r"]]["y_end"] = q["y"]
                     layer["row"][q["r"]]["qs"].append(q["id"])
@@ -2084,6 +2101,7 @@ class Animator:
         show_graph: bool = False,
         edges: Union[Sequence[Sequence[int]], None] = None,
         dir: Union[str, None] = None,
+        circuit_image: str | None = None
     ):
         """
         Args:
@@ -2104,6 +2122,8 @@ class Animator:
         matplotlib.rcParams.update({"font.size": font})
         plt.rcParams["animation.ffmpeg_path"] = ffmpeg
         self.show_graph = show_graph
+        self.show_circuit = not circuit_image is None
+        self.circuit_image = circuit_image
         self.graph_edges = edges
         self.read_files(code_file_name)
 
@@ -2152,7 +2172,7 @@ class Animator:
                 inst["duration"] = MUS_PER_FRM * 8  # i.e., 8 frames
 
             if inst["type"] == "Raman":
-                inst["duration"] = MUS_PER_FRM * 8  # TODO: pick duration
+                inst["duration"] = MUS_PER_FRM * 12  # TODO: pick duration
 
             # Activate and Deactivate is on par with some movements in terms of
             # duration, but we do not have ramping-up or -down animations yet,
@@ -2202,20 +2222,25 @@ class Animator:
         self.Y_LOW = -Y_LOW_PAD
         self.Y_HIGH = (self.y_high - 1) * Y_SITE_SEP + Y_HIGH_PAD
 
-        if self.show_graph:
+        if self.show_circuit:
             # 1 row 2 col, DPQA on the left, the graph on the right
-            self.fig, (self.ax, self.network_ax) = plt.subplots(
+            self.fig, (self.ax, self.circuit_ax) = plt.subplots(
                 1,
                 2,
-                gridspec_kw={"width_ratios": [6, 3]},
+                gridspec_kw={"width_ratios": [6, 6]},
                 figsize=(
                     (self.X_HIGH - self.X_LOW) * px * 4 / 3,
                     (self.Y_HIGH - self.Y_LOW) * px,
                 ),
             )
             self.fig.tight_layout()
-            self.network = nx.Graph()
-            self.network_ax.set_title("The 3-regular graph")
+            self.circuit_ax.set_title("The circuit diagram")
+            im = plt.imread(self.circuit_image)
+            self.circuit_ax.imshow(im)
+            self.circuit_ax.axis('off')
+            
+            self.patch = patches.Rectangle((RECTANGLE_LEFT, RECTANGLE_TOP), STAGE_WIDTH, QUBIT_HEIGHT * self.n_q + ADDITIONAL_HEIGHT, color='red', fill=False, lw=5)
+            self.circuit_ax.add_patch(self.patch)
         else:
             (
                 self.fig,
@@ -2238,7 +2263,7 @@ class Animator:
         self.ax.set_yticklabels([i for i in range(self.y_high)])
         # self.ax.set_facecolor('black')
         # self.ax.spines['bottom'].set_color('white')
-        # self.ax.spines['top'].set_color('white') 
+        # self.ax.spines['top'].set_color('white')
         # self.ax.spines['right'].set_color('white')
         # self.ax.spines['left'].set_color('white')
 
@@ -2298,19 +2323,36 @@ class Animator:
                     raise ValueError(f"unknown inst type {inst['type']}")
 
     def update_raman(self, f: int, inst: dict):
+        q_id = inst["gate"]["q0"]
         if f == inst["f_begin"]:
+            self.title.set_text(inst["name"])
+            if self.circuit_image:
+                self.patch.set_x(self.patch.get_x() + STAGE_WIDTH)
+
             self.qubit_scat.set_color(
                 [
-                    "g" if i == inst["gate"]["q0"] else "b"
+                    "g" if i == q_id else "b"
                     for i in range(len(inst["state"]["qubits"]))
                 ]
             )
+            self.texts = [
+                self.ax.text(inst["state"]["qubits"][q_id]["x"] + 1,
+                             inst["state"]["qubits"][q_id]["y"] + 1,
+                             f"duration={inst["raman_duration"]:.3f}, angle={inst["angle"]:.3f}, rabi={inst["rabi_max"]:.3f}, detuning={inst["detuning_max"]:.3f}")
+            ]
+            self.qubit_scat.set_offsets(
+                [(q["x"], q["y"]) for q in inst["state"]["qubits"]]
+            )
         if f == inst["f_end"]:
             self.qubit_scat.set_color("b")
+            for text in self.texts:
+                text.remove()
 
     def update_rydberg(self, f: int, inst: dict):
         edges = [(g["q0"], g["q1"]) for g in inst["gates"]]
         if f == inst["f_begin"]:
+            if self.circuit_image:
+                self.patch.set_x(self.patch.get_x() + STAGE_WIDTH)
             self.title.set_text(inst["name"])
 
             # find the qubits involved in 2Q gates and annotate their ids
@@ -2429,6 +2471,8 @@ class Animator:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=str)
+    parser.add_argument("circuit_image_file", type=str)
+    parser.add_argument("--steane", help="input file implements steane code", action="store_true")
     parser.add_argument("--scaling", help="scaling factor of the animation", type=int)
     parser.add_argument("--font", help="font size in the animation", type=int)
     parser.add_argument("--ffmpeg", help="custom ffmpeg path", type=str)
@@ -2437,26 +2481,35 @@ if __name__ == "__main__":
         help="real speed in the animation of reload and offload procedures",
         action="store_true",
     )
-    parser.add_argument(
-        "--noGraph", help="do not show graph on the side", action="store_true"
-    )
+    # parser.add_argument(
+    #     "--noGraph", help="do not show graph on the side", action="store_true"
+    # )
     parser.add_argument("--dir", help="working directory", type=str)
     args = parser.parse_args()
 
     with open(args.input_file, "r") as f:
         data = json.load(f)
+    
+    # init_data = copy.deepcopy(steane_data)
+    # init_data["layers"] = init_data["layers"][:6]
+    # steane_data["layers"] = steane_data["layers"][6:]
+
+    
     codegen = CodeGen(
-        args.input_file,
-        no_transfer=data["no_transfer"],
-        dir=args.dir if args.dir else "./results/code/",
-    )
+            args.input_file,
+            data,
+            no_transfer=data["no_transfer"],
+            dir=args.dir if args.dir else "./results/code/",
+            steane=args.steane
+        )
     Animator(
-        codegen.code_full_file,
-        scaling_factor=args.scaling if args.scaling else PT_MICRON,
-        font=20,
-        ffmpeg=args.ffmpeg if args.ffmpeg else "ffmpeg",
-        real_speed=args.realSpeed,
-        show_graph=False,
-        edges=data["g_q"] if not args.noGraph else [],
-        dir=args.dir if args.dir else "./results/animations/",
-    )
+            codegen.code_full_file,
+            scaling_factor=args.scaling if args.scaling else PT_MICRON,
+            font=20,
+            ffmpeg=args.ffmpeg if args.ffmpeg else "ffmpeg",
+            real_speed=args.realSpeed,
+            show_graph=False,
+            edges=[],
+            dir=args.dir if args.dir else "./results/animations/",
+            circuit_image=args.circuit_image_file
+        )
