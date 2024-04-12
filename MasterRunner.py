@@ -114,7 +114,7 @@ class Runner:
         with open(smt_json, "r") as f:
             smt = json.load(f)
 
-        self.n_q = len(smt_json["layers"][0]["qubits"])
+        self.n_q = len(smt["layers"][0]["qubits"])
 
         # get a mapping from double gate ids to initial ids
         id_mapping: dict[int, int] = dict()

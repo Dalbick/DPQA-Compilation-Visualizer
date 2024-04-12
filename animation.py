@@ -878,6 +878,8 @@ class Raman(Inst):
     # decomposes a single-qubit rotation into parameters for the architechture
     @staticmethod
     def compute_parameters(gate: Mapping[str, int | str]) -> dict[str, int | float]:
+        if gate['op'] == 'm':
+            return {}
         param = (
             rx(gate)
             if gate["op"] == "rx"
@@ -893,6 +895,24 @@ class Raman(Inst):
             "rabi_max": param[2][0],
             "detuning_max": param[2][1],
         }
+    
+
+class Measurement(Inst):
+    def __init__(
+        self,
+        s: int,
+        col_objs: Sequence[Col],
+        row_objs: Sequence[Row],
+        qubit_objs: Sequence[Qubit],
+        gate: Mapping[str, int | str],
+    ):
+        super().__init__("Measurement", prefix=f'Raman_{s}_{gate["q0"]}', stage=s)
+        self.verify(gate, qubit_objs)
+        super().write_code(col_objs, row_objs, qubit_objs, {"gate": gate})
+
+    def verify(self, gate: Mapping[str, int | str], qubit_objs: Sequence[Qubit]):
+        # TODO: verification code to check if gate can be applied
+        pass
 
 
 # class for big ops: ReloadRow, Reload, OffloadRow, Offload, SwapPair, Swap
@@ -1674,7 +1694,10 @@ class CodeGen:
     ):
         gates = list(filter(lambda g: g["q1"] == -1, self.layers[s]["gates"]))
         for g in gates:
-            program.append_inst(Raman(s, cols, rows, qubits, g))
+            if g["op"] == "m":
+                program.append_inst(Measurement(s, cols, rows, qubits, g))
+            else:
+                program.append_inst(Raman(s, cols, rows, qubits, g))
         # TODO: check if slms should be added
 
     def builder_swap(
@@ -2172,9 +2195,9 @@ class Animator:
             # Rydberg interaction is much shorter compared to the movements,
             # so using real speed, we will never see Rydberg.
             if inst["type"] == "Rydberg":
-                inst["duration"] = MUS_PER_FRM * 8  # i.e., 8 frames
+                inst["duration"] = MUS_PER_FRM * 12  # i.e., 12 frames
 
-            if inst["type"] == "Raman":
+            if inst["type"] == "Raman" or inst["type"] == "Measurement":
                 inst["duration"] = MUS_PER_FRM * 12  # TODO: pick duration
 
             # Activate and Deactivate is on par with some movements in terms of
@@ -2321,7 +2344,7 @@ class Animator:
                     return self.update_deactivate(f, inst)
                 elif inst["type"] == "Init":
                     return
-                elif inst["type"] == "Raman":
+                elif inst["type"] == "Raman" or inst["type"] == "Measurement":
                     return self.update_raman(f, inst)
                 else:
                     raise ValueError(f"unknown inst type {inst['type']}")
@@ -2336,15 +2359,16 @@ class Animator:
 
             self.qubit_scat.set_color(
                 [
-                    "g" if i == q_id else "b"
+                    "b" if i != q_id else "g" if inst["gate"]["op"] != "m" else "r"
                     for i in range(len(inst["state"]["qubits"]))
                 ]
             )
-            self.texts = [
-                self.ax.text(inst["state"]["qubits"][q_id]["x"] + 1,
+            if inst["gate"]["op"] != "m":
+                self.texts = [
+                    self.ax.text(inst["state"]["qubits"][q_id]["x"] + 1,
                              inst["state"]["qubits"][q_id]["y"] + 1,
                              f"duration={inst["raman_duration"]:.3f}, angle={inst["angle"]:.3f}, rabi={inst["rabi_max"]:.3f}, detuning={inst["detuning_max"]:.3f}")
-            ]
+                ]
             self.qubit_scat.set_offsets(
                 [(q["x"], q["y"]) for q in inst["state"]["qubits"]]
             )
@@ -2352,8 +2376,9 @@ class Animator:
             if self.circuit_image:
                 self.patch.set_visible(False)
             self.qubit_scat.set_color("b")
-            for text in self.texts:
-                text.remove()
+            if inst["gate"]["op"] != "m":
+                for text in self.texts:
+                    text.remove()
 
     def update_rydberg(self, f: int, inst: dict):
         edges = [(g["q0"], g["q1"]) for g in inst["gates"]]
