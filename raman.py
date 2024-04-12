@@ -8,17 +8,18 @@ def ry(data):
     """
     if "logical_q" and "ancilla" in data:
         angle = data["rotation"]
-        name = f"id({data["logical_q"]})_steane({data["q0"]})_ancilla({data["ancilla"]})_op({data["type"]})_angle({angle})"
+        name = f"id({data['logical_q']})_steane({data['q0']})_ancilla({data['ancilla']})_op({data['type']})_angle({angle})"
     else: 
         angle = data["angle"]
-        name = f"id({data["id"]})_op({data["op"]})_angle({angle})"
+        name = f"id({data['id']})_op({data['op']})_angle({angle})"
     
     rabi_max = 12.5
-    plateau_time = (angle * np.pi - 0.625) / rabi_max
+    plateau_time = (abs(angle) * np.pi - 0.625) / rabi_max
 
     wf_durations = [0.05, plateau_time, 0.05]
     rabi_wf_values = [0.0, rabi_max, 0.0]
 
+    """
     t = [0]
     waveform_values = [rabi_wf_values[0]]
 
@@ -44,7 +45,8 @@ def ry(data):
     plt.grid(True)
 
     # Saving the figure
-    plt.savefig('./gate_pulses/' + name + '.jpg')
+    # plt.savefig('./gate_pulses/' + name + '.jpg')
+    """
 
     return sum(wf_durations), angle, [rabi_max, 0]
 
@@ -53,17 +55,20 @@ def rz(data):
     Constructing a piecewise-linear waveform of a Rabi frequency pulse to drive a rotation about the x-axis.
     We assume the Aquila parameters that 0.05 microseconds is the minimum timestep
     """
-    angle = data["params"]
     if "steane" and "ancilla" in data:
-        name = f"id({data["id"]})_steane({data["steane"]})_ancilla({data["ancilla"]})_op({data["op"]})_angle({angle})"
-    else: name = f"id({data["id"]})_op({data["op"]})_angle({angle})"
+        angle = data["rotation"]
+        name = f"id({data['id']})_steane({data['steane']})_ancilla({data['ancilla']})_op({data['op']})_angle({angle})"
+    else: 
+        angle = data["angle"]
+        name = f"id({data['id']})_op({data['op']})_angle({angle})"
     
     detuning_max = 10
-    plateau_time = (angle * np.pi - 0.625) / detuning_max
+    plateau_time = (abs(angle) * np.pi - 0.625) / detuning_max
     
     wf_durations = [0.05, plateau_time, 0.05]
     detuning_wf_values = [0.0, detuning_max, 0.0]
 
+    """
     t = [0]
     waveform_values = [detuning_wf_values[0]]
 
@@ -89,7 +94,8 @@ def rz(data):
     plt.grid(True)
 
     # Saving the figure
-    plt.savefig('./gate_pulses/' + name + '.jpg')
+    # plt.savefig('./gate_pulses/' + name + '.jpg')
+    """
 
     return sum(wf_durations), angle, [0, detuning_max]
 
@@ -98,14 +104,16 @@ def rx(data):
     Constructing a piecewise-linear waveform of a Rabi frequency pulse to drive a rotation about the y-axis.
     We assume the Aquila parameters that 0.05 microseconds is the minimum timestep
     """
-    angle = data["params"]
     if "steane" and "ancilla" in data:
-        name = f"id({data["id"]})_steane({data["steane"]})_ancilla({data["ancilla"]})_op({data["op"]})_angle({angle})"
-    else: name = f"id({data["id"]})_op({data["op"]})_angle({angle})"
+        angle = data["rotation"]
+        name = f"id({data['id']})_steane({data['steane']})_ancilla({data['ancilla']})_op({data['op']})_angle({angle})"
+    else: 
+        angle = data["angle"]
+        name = f"id({data['id']})_op({data['op']})_angle({angle})"
     
     # driving a rotation of angle*pi
     rabi_max = 12.5
-    plateau_time_rabi = (angle * np.pi - 0.625) / 12.5
+    plateau_time_rabi = (abs(angle) * np.pi - 0.625) / 12.5
     wf_durations_rabi = [0.05, plateau_time_rabi, 0.05]
     rabi_wf_values = [0.0, rabi_max, 0.0]
 
@@ -115,7 +123,7 @@ def rx(data):
     wf_durations_detuning = [0.05, plateau_time_detuning, 0.05]
     detuning_wf_values = [0.0, detuning_max, 0.0]
 
-
+    """
     t_rabi = [0]
     t_detuning = [0]
     waveform_values_rabi = [rabi_wf_values[0]]
@@ -153,6 +161,7 @@ def rx(data):
     ax2.grid(True)
 
     # Saving the figure
-    plt.savefig('./gate_pulses/' + name + '.jpg')
+    # plt.savefig('./gate_pulses/' + name + '.jpg')
+    """
 
     return sum(wf_durations_rabi), angle, [rabi_max, detuning_max]

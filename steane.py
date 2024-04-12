@@ -37,9 +37,6 @@ def initialize_steane(dir: str, name: str):
     with open(dir + name, 'r') as f:
         smt = json.load(f)
 
-    with open(dir + name, 'r') as f:
-        circuit = json.load(f)
-
     # modify coordinates in first layer to take care of duplicates
     first_layer_copy = copy.deepcopy(smt['layers'][0]) # ensure that dictionary entries are also copied
     resolved_qubits = resolve_duplicates(first_layer_copy['qubits'])
@@ -144,7 +141,7 @@ def initialize_steane(dir: str, name: str):
           steane_layer_gates[2].append({
                 'id': ('S','single'), # change this notation to match Daniil
                 'logical_q': q['id'],
-                'type': 'ry',
+                'op': 'ry',
                 'rotation': 0.5,
                 'q0': i_g_2,
                 'q1': -1,
@@ -153,7 +150,7 @@ def initialize_steane(dir: str, name: str):
           steane_layer_gates[2].append({
                 'id': ('S','single'), # change this notation to match Daniil
                 'logical_q': q['id'],
-                'type': 'rx',
+                'op': 'rx',
                 'rotation': 1,
                 'q0': i_g_2,
                 'q1': -1,
@@ -170,14 +167,19 @@ def initialize_steane(dir: str, name: str):
               'ancilla': 1
            })
 
+    steane = {"name": f"{smt['name']}_steane", "layers": []}
+
     # dump to SMT output for animation processing
     for layer in range(4,-1,-1):
-      smt['layers'].insert(0, {'qubits': steane_layer_qubits[layer], 'gates': steane_layer_gates[layer]})
+      steane['layers'].insert(0, {'qubits': steane_layer_qubits[layer], 'gates': steane_layer_gates[layer]})
     
-    smt['layers'][5]['gates'] = []
+    # steane['layers'][5]['gates'] = []
 
     with open(dir + 'smt_steane_' + name, 'w') as f:
-      json.dump(smt, f)
+      json.dump(steane, f)
+
+    with open(dir + name, 'w') as f:
+       json.dump(smt, f)
 
     """
     TODO: add padding for the qubits at starting positions
