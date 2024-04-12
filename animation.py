@@ -2223,10 +2223,10 @@ class Animator:
         self.Y_HIGH = (self.y_high - 1) * Y_SITE_SEP + Y_HIGH_PAD
 
         if self.show_circuit:
-            # 1 row 2 col, DPQA on the left, the graph on the right
+            # 2 rows 1 col, DPQA on the bottom, the graph on the top
             self.fig, (self.ax, self.circuit_ax) = plt.subplots(
-                1,
                 2,
+                1,
                 gridspec_kw={"width_ratios": [6, 6]},
                 figsize=(
                     (self.X_HIGH - self.X_LOW) * px * 4 / 3,
