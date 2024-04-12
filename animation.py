@@ -869,7 +869,7 @@ class Raman(Inst):
     # decomposes a single-qubit rotation into parameters for the architechture
     @staticmethod
     def compute_parameters(gate: Mapping[str, int | str]) -> dict[str, int | float]:
-        param = rx(gate) if gate['op'] == 'rx' else ry(gate) if gate['op'] == 'ry' else rz(gate) if gate['op'] == 'rz' else 0, 0, [0,0]
+        param = rx(gate) if gate['op'] == 'rx' else ry(gate) if gate['op'] == 'ry' else rz(gate) if gate['op'] == 'rz' else (0, 0, [0,0])
         print(param[0])
         return {"duration": param[0],
                 "angle": param[1],
