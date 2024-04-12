@@ -31,7 +31,6 @@ def generate_figure(dir: str, name: str, num_qubits):
                 qc.measure(g['q0'])
 
     qc.draw(output='mpl')
-    plt.subplots_adjust(left=0.8, right=0.9, top=0.2, bottom=0.1)
     plt.savefig(dir + 'circuit_' + name[:-5] + '.jpg')
 
 generate_figure('./', 'smt_QRISE.json', 2)
