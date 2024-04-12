@@ -1,5 +1,6 @@
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from typing import Sequence, Mapping, Any, Union
+from raman import rx, ry, rz
 import matplotlib.pyplot as plt
 import json
 import matplotlib
@@ -8,9 +9,10 @@ import argparse
 from abc import ABC, abstractmethod
 
 
+
 # physics constants
 R_B = 6  # rydberg range
-AOD_SEP = 2  # min AOD separation
+AOD_SEP = 4  # min AOD separation
 RYD_SEP = 15  # sufficient distance to avoid Rydberg
 SITE_SLMS = 2  # number of SLMs in a site
 SLM_SEP = AOD_SEP  # separation of SLMs inside a site
@@ -867,7 +869,13 @@ class Raman(Inst):
     # decomposes a single-qubit rotation into parameters for the architechture
     @staticmethod
     def compute_parameters(gate: Mapping[str, int | str]) -> dict[str, int | float]:
-        return {"duration": T_RYDBERG}  # TODO: actual decomposition
+        param = rx(gate) if gate['op'] == 'rx' else ry(gate) if gate['op'] == 'ry' else rz(gate) if gate['op'] == 'rz' else 0, 0, [0,0]
+        print(param[0])
+        return {"duration": param[0],
+                "angle": param[1],
+                "rabi_max": param[2][0],
+                "detuning_max": param[2][1]
+                }
 
 
 # class for big ops: ReloadRow, Reload, OffloadRow, Offload, SwapPair, Swap
@@ -2199,7 +2207,7 @@ class Animator:
             self.fig, (self.ax, self.network_ax) = plt.subplots(
                 1,
                 2,
-                gridspec_kw={"width_ratios": [3, 1]},
+                gridspec_kw={"width_ratios": [6, 3]},
                 figsize=(
                     (self.X_HIGH - self.X_LOW) * px * 4 / 3,
                     (self.Y_HIGH - self.Y_LOW) * px,
@@ -2228,6 +2236,11 @@ class Animator:
         self.ax.set_ylim([self.Y_LOW, self.Y_HIGH])
         self.ax.set_yticks([Y_SITE_SEP * i for i in range(self.y_high)])
         self.ax.set_yticklabels([i for i in range(self.y_high)])
+        # self.ax.set_facecolor('black')
+        # self.ax.spines['bottom'].set_color('white')
+        # self.ax.spines['top'].set_color('white') 
+        # self.ax.spines['right'].set_color('white')
+        # self.ax.spines['left'].set_color('white')
 
         # draw all the SLMs used throught out the computation
         # slm_xs = [slm[0] for slm in self.code[0]['all_slms']]
@@ -2440,10 +2453,10 @@ if __name__ == "__main__":
     Animator(
         codegen.code_full_file,
         scaling_factor=args.scaling if args.scaling else PT_MICRON,
-        font=args.font if args.font else 10,
+        font=20,
         ffmpeg=args.ffmpeg if args.ffmpeg else "ffmpeg",
         real_speed=args.realSpeed,
-        show_graph=not args.noGraph,
+        show_graph=False,
         edges=data["g_q"] if not args.noGraph else [],
         dir=args.dir if args.dir else "./results/animations/",
     )
