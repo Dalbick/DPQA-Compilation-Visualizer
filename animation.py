@@ -1447,9 +1447,9 @@ class CodeGen:
     corresponding to a DPQA instruction defined above.
     """
 
-    def __init__(self, file_name: str, data: dict, no_transfer: bool = False, dir: str = None, steane: bool = False):
+    def __init__(self, file_name: str, no_transfer: bool = False, dir: str = None, steane: bool = False):
         self.steane = steane
-        self.read_compiled(data)
+        self.read_compiled(file_name)
         program = self.builder(no_transfer)
 
         if not dir:
@@ -1462,10 +1462,10 @@ class CodeGen:
         with open(self.code_full_file.replace("_code_full", "_code"), "w") as f:
             json.dump(program.emit(), f)
 
-    def read_compiled(self, data: dict):
+    def read_compiled(self, filename: str):
+        with open(filename, 'r') as f:
+            data = json.load(f)
         self.n_q = data["n_q"]
-        if self.steane == "init":
-            self.n_q *= 14
         self.x_high = data["n_x"]
         self.y_high = data["n_y"]
         self.c_high = data["n_c"]
@@ -2144,6 +2144,7 @@ class Animator:
         animation_file = (
             dir + (code_file_name.replace("_code_full.json", ".mp4")).split("/")[-1]
         )
+        self.animation_file = animation_file
         anim.save(animation_file, writer=FFMpegWriter(FPS))
 
     def read_files(self, code_file: str):
@@ -2480,7 +2481,7 @@ class Animator:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=str)
-    parser.add_argument("circuit_image_file", type=str)
+    parser.add_argument("circuit_image_file", nargs="?", type=str)
     parser.add_argument("--steane", help="input file implements steane code", action="store_true")
     parser.add_argument("--scaling", help="scaling factor of the animation", type=int)
     parser.add_argument("--font", help="font size in the animation", type=int)
@@ -2499,6 +2500,9 @@ if __name__ == "__main__":
     with open(args.input_file, "r") as f:
         data = json.load(f)
     
+    if args.steane:
+        data["layers"] = data["layers"][:-1]
+
     # init_data = copy.deepcopy(steane_data)
     # init_data["layers"] = init_data["layers"][:6]
     # steane_data["layers"] = steane_data["layers"][6:]
@@ -2506,7 +2510,6 @@ if __name__ == "__main__":
     
     codegen = CodeGen(
             args.input_file,
-            data,
             no_transfer=data["no_transfer"],
             dir=args.dir if args.dir else "./results/code/",
             steane=args.steane
@@ -2520,5 +2523,5 @@ if __name__ == "__main__":
             show_graph=False,
             edges=[],
             dir=args.dir if args.dir else "./results/animations/",
-            circuit_image=args.circuit_image_file
+            circuit_image=args.circuit_image_file or None
         )

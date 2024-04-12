@@ -467,5 +467,24 @@
       ],
       "gates": []
     }
-  ]
+  ],
+  "sat": false,
+  "n_t": 2,
+  "n_q": 28,
+  "all_commutable": false,
+  "all_aod": false,
+  "no_transfer": false,
+  "n_c": 16,
+  "n_r": 16,
+  "n_x": 16,
+  "n_y": 16,
+  "row_per_site": 3,
+  "n_g": 2,
+  "g_q": [
+    [0, 1],
+    [0, 1]
+  ],
+  "g_s": ["CRZ", "CRZ"],
+  "timestamp": "1712474192.400387",
+  "duration": "0.10164904594421387"
 }

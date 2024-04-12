@@ -2,6 +2,11 @@ import json
 import math
 from solve import DPQA
 from typing import Any
+from steane import initialize_steane
+from circuit_figure import generate_figure
+from animation import CodeGen, Animator, PT_MICRON
+import ffmpeg
+import os
 
 # from QRISEAnimations.Atomique import Block, QCircuit, Animation
 
@@ -14,9 +19,11 @@ class Runner:
     We note that arbitrary single-qubit gate execution may cause crosstalk in the real hardware case
     where single-qubit gate pulses play on adjacent qubits which is not currently constrained by the SMT solver.
     """
+
     def __init__(self, name: str, dir: str):
         self.dir = dir
         self.name = name
+        self.with_steane = False
 
     def decompose(self):
         # TODO: run Kevin's function
@@ -32,21 +39,28 @@ class Runner:
 
         # find single and two-qubit gates
         twos = [
-            (i, q['qubits'])
-            for i, q in enumerate(data['experiments'][0]['instructions'])
-            if len(q['qubits']) == 2 and isinstance(q['qubits'][1], int)
+            (i, q["qubits"])
+            for i, q in enumerate(data["experiments"][0]["instructions"])
+            if len(q["qubits"]) == 2 and isinstance(q["qubits"][1], int)
         ]
 
         gates = [
-            [
-                q['qubits'][0], 
-                q['name'], 
-                round(q['params'][0] / math.pi, 5) # get multiple of pi rotation for clean animation representation
-                ] 
-            if len(q['qubits']) == 1 and q['name'] != 'measure'
-            else [q['qubits'][0], 'm', 0.0] if q['name'] == 'measure'
-            else q['qubits'] 
-            for q in data['experiments'][0]['instructions']
+            (
+                [
+                    q["qubits"][0],
+                    q["name"],
+                    round(
+                        q["params"][0] / math.pi, 5
+                    ),  # get multiple of pi rotation for clean animation representation
+                ]
+                if len(q["qubits"]) == 1 and q["name"] != "measure"
+                else (
+                    [q["qubits"][0], "m", 0.0]
+                    if q["name"] == "measure"
+                    else q["qubits"]
+                )
+            )
+            for q in data["experiments"][0]["instructions"]
         ]
 
         # dump 'em
@@ -100,6 +114,8 @@ class Runner:
         with open(smt_json, "r") as f:
             smt = json.load(f)
 
+        self.n_q = len(smt_json["layers"][0]["qubits"])
+
         # get a mapping from double gate ids to initial ids
         id_mapping: dict[int, int] = dict()
         double_id = 0
@@ -122,7 +138,13 @@ class Runner:
         for i, gate in enumerate(gates):
             if isinstance(gate[1], str):
                 layer = last_seen.get(gate[0], -1) + 1
-                new_gate = {"id": i, "q0": gate[0], "q1": -1, "op": gate[1], "angle": gate[2]}
+                new_gate = {
+                    "id": i,
+                    "q0": gate[0],
+                    "q1": -1,
+                    "op": gate[1],
+                    "angle": gate[2],
+                }
                 if layer < len(smt["layers"]):
                     smt["layers"][layer]["gates"].insert(0, new_gate)
                 else:
@@ -143,22 +165,85 @@ class Runner:
             )
 
         # standardize output for two-qubit gates
-        for layer in range(len(smt['layers'])):
-            for g in smt['layers'][layer]['gates']:
+        for layer in range(len(smt["layers"])):
+            for g in smt["layers"][layer]["gates"]:
                 if layer in id_mapping:
-                    gate_id = id_mapping[layer] 
-                    if g['id'] == gate_id:
-                        g['op'] = input_circuit['experiments'][0]['instructions'][gate_id]['name']
-                        g['angle'] = 0
-
+                    gate_id = id_mapping[layer]
+                    if g["id"] == gate_id:
+                        g["op"] = input_circuit["experiments"][0]["instructions"][
+                            gate_id
+                        ]["name"]
+                        g["angle"] = 0
 
         # dump to smt_json
         with open(smt_json, "w") as f:
             json.dump(smt, f)
 
+    def steane(self):
+        with open(self.dir + "smt_" + self.name, "r") as f:
+            smt = json.load(f)
+        initialize_steane(self.dir, "smt_" + self.name)
+        self.with_steane = True
+
     def animate(self):
-        # TODO: Run Dmitrii and David's animation
-        pass
+        main_filename = self.dir + "smt_" + self.name
+        steane_filename = self.dir + "steane_smt_" + self.name
+        image_path = generate_figure(self.dir, "smt_" + self.name, self.n_q)
+
+        with open(main_filename, "r") as f:
+            main = json.load(f)
+
+        codegen_main = CodeGen(
+            "smt_" + self.name,
+            no_transfer=main["no_transfer"],
+            dir=self.dir,
+            steane=False,
+        )
+
+        animation_main = Animator(
+            codegen_main.code_full_file,
+            scaling_factor=PT_MICRON,
+            font=20,
+            ffmpeg="ffmpeg",
+            real_speed=False,
+            show_graph=False,
+            edges=[],
+            dir=self.dir,
+            circuit_image=image_path,
+        )
+
+        if self.with_steane:
+            with open(steane_filename, "r") as f:
+                init = json.load(f)
+
+            codegen_init = CodeGen(
+                "steane_smt_" + self.name,
+                no_transfer=main["no_transfer"],
+                dir=self.dir,
+                steane=True,
+            )
+
+            animation_init = Animator(
+                codegen_init.code_full_file,
+                scaling_factor=PT_MICRON,
+                font=20,
+                ffmpeg="ffmpeg",
+                real_speed=False,
+                show_graph=False,
+                edges=[],
+                dir=self.dir,
+            )
+
+            main_video = ffmpeg.input(animation_main.animation_file)
+            init_video = ffmpeg.input(animation_init.animation_file)
+
+            joined = ffmpeg.concat([init_video.video, main_video.video]).node()
+            ffmpeg.output(
+                joined[0],
+                joined[1],
+                animation_main.animation_file,
+            ).run()
+            os.remove(animation_init.animation_file)
 
 
 run = Runner(name="QRISE.json", dir="./")
@@ -166,3 +251,4 @@ run = Runner(name="QRISE.json", dir="./")
 run.parse_json()
 run.SMT()
 run.singles_reinsert()
+run.animate()
