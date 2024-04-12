@@ -37,10 +37,11 @@ T_ACTIVATE = 50  # microseconds for (de)activating AOD
 
 # constants for circuit animation
 RECTANGLE_TOP = 50 # rectangele top padding
-RECTANGLE_LEFT = 150 # rectangle initial left padding
+RECTANGLE_LEFT = 166.5 # rectangle initial left padding
 STAGE_WIDTH = 100 # width between two consecutive barriers
 QUBIT_HEIGHT = 50 # height that each qubit adds to the circuit
-ADDITIONAL_HEIGHT = 30 # rectangle height for 0-qubit circuit
+ADDITIONAL_HEIGHT = 35 # rectangle height for 0-qubit circuit
+BARRIER_WIDTH = 28.5 # width of each barrier
 
 
 # class for physical entities: qubits and AOD rows/cols
@@ -1658,8 +1659,9 @@ class CodeGen:
         init: Init,
     ):
         gates = list(filter(lambda g: g["q1"] != -1, self.layers[s]["gates"]))
-        program.append_inst(Rydberg(s, cols, rows, qubits, gates))
-        init.add_slms([(q.x, q.y) for q in qubits])
+        if gates:
+            program.append_inst(Rydberg(s, cols, rows, qubits, gates))
+            init.add_slms([(q.x, q.y) for q in qubits])
 
     def builder_raman(
         self,
@@ -2227,7 +2229,7 @@ class Animator:
             self.fig, (self.ax, self.circuit_ax) = plt.subplots(
                 2,
                 1,
-                gridspec_kw={"width_ratios": [6, 6]},
+                gridspec_kw={"height_ratios": [6, 6]},
                 figsize=(
                     (self.X_HIGH - self.X_LOW) * px * 4 / 3,
                     (self.Y_HIGH - self.Y_LOW) * px,
@@ -2240,6 +2242,7 @@ class Animator:
             self.circuit_ax.axis('off')
             
             self.patch = patches.Rectangle((RECTANGLE_LEFT, RECTANGLE_TOP), STAGE_WIDTH, QUBIT_HEIGHT * self.n_q + ADDITIONAL_HEIGHT, color='red', fill=False, lw=5)
+            self.patch.set_visible(False)
             self.circuit_ax.add_patch(self.patch)
         else:
             (
@@ -2327,7 +2330,8 @@ class Animator:
         if f == inst["f_begin"]:
             self.title.set_text(inst["name"])
             if self.circuit_image:
-                self.patch.set_x(self.patch.get_x() + STAGE_WIDTH)
+                self.patch.set_x(self.patch.get_x() + STAGE_WIDTH + BARRIER_WIDTH)
+                self.patch.set_visible(True)
 
             self.qubit_scat.set_color(
                 [
@@ -2344,6 +2348,8 @@ class Animator:
                 [(q["x"], q["y"]) for q in inst["state"]["qubits"]]
             )
         if f == inst["f_end"]:
+            if self.circuit_image:
+                self.patch.set_visible(False)
             self.qubit_scat.set_color("b")
             for text in self.texts:
                 text.remove()
@@ -2352,7 +2358,8 @@ class Animator:
         edges = [(g["q0"], g["q1"]) for g in inst["gates"]]
         if f == inst["f_begin"]:
             if self.circuit_image:
-                self.patch.set_x(self.patch.get_x() + STAGE_WIDTH)
+                self.patch.set_x(self.patch.get_x() + STAGE_WIDTH + BARRIER_WIDTH)
+                self.patch.set_visible(True)
             self.title.set_text(inst["name"])
 
             # find the qubits involved in 2Q gates and annotate their ids
@@ -2390,6 +2397,8 @@ class Animator:
 
         if f == inst["f_end"]:
             # clean up the annotations and blue background at finishing frame
+            if self.circuit_image:
+                self.patch.set_visible(False)
             self.ax.set_facecolor("w")
             for text in self.texts:
                 text.remove()
