@@ -28,7 +28,7 @@ def generate_figure(dir: str, name: str, num_qubits):
                 qc.cx(g['q0'], g['q1'])
                 qc.barrier()
             if g['op'] == 'm':
-                qc.measure(g['q0'])
+                qc.measure(g['q0'], g['q0'])
 
     qc.draw(output='mpl')
     plt.savefig(dir + 'circuit_' + name[:-5] + '.jpg')
