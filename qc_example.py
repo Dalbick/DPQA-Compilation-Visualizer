@@ -9,15 +9,15 @@ from MasterRunner import Runner
 import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.providers.fake_provider import GenericBackendV2
- 
+
 backend = GenericBackendV2(5)
 
-theta = 2 * np.arccos(1/np.sqrt(3))
- 
+theta = 2 * np.arccos(1 / np.sqrt(3))
+
 num_qubits = 3
 
 qc = QuantumCircuit(3, 1)
- 
+
 qc.ry(theta, 0)
 qc.ch(0, 1)
 qc.cx(1, 2)
