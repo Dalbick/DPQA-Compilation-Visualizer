@@ -48,7 +48,74 @@ def ry(data):
     # plt.savefig('./gate_pulses/' + name + '.jpg')
     """
 
-    return sum(wf_durations), angle, [rabi_max, 0]
+    return sum(wf_durations), angle, [rabi_max, np.pi/2]
+
+def rx(data):
+    """
+    Constructing a piecewise-linear waveform of a Rabi frequency pulse to drive a rotation about the y-axis.
+    We assume the Aquila parameters that 0.05 microseconds is the minimum timestep
+    """
+    if "steane" and "ancilla" in data:
+        angle = data["rotation"]
+        name = f"id({data['id']})_steane({data['steane']})_ancilla({data['ancilla']})_op({data['op']})_angle({angle})"
+    else: 
+        angle = data["angle"]
+        name = f"id({data['id']})_op({data['op']})_angle({angle})"
+    
+    # driving a rotation of angle*pi
+    rabi_max = 12.5
+    plateau_time_rabi = (abs(angle) * np.pi - 0.625) / 12.5
+    wf_durations_rabi = [0.05, plateau_time_rabi, 0.05]
+    rabi_wf_values = [0.0, rabi_max, 0.0]
+
+    # phase shit of pi / 2
+    # detuning_max = 10
+    # plateau_time_detuning = (np.pi / 2 - 0.625) / detuning_max
+    # wf_durations_detuning = [0.05, plateau_time_detuning, 0.05]
+    # detuning_wf_values = [0.0, detuning_max, 0.0]
+
+    """
+    t_rabi = [0]
+    t_detuning = [0]
+    waveform_values_rabi = [rabi_wf_values[0]]
+    waveform_values_detuning = [detuning_wf_values[0]]
+
+    t_rabi.append(wf_durations_rabi[0])
+    t_detuning.append(wf_durations_detuning[0])
+    waveform_values_rabi.append(rabi_wf_values[1])
+    waveform_values_detuning.append(detuning_wf_values[1])
+
+    t_rabi.append(wf_durations_rabi[0] + wf_durations_rabi[1])
+    t_detuning.append(wf_durations_detuning[0] + wf_durations_detuning[1])
+    waveform_values_rabi.append(rabi_wf_values[1])
+    waveform_values_detuning.append(detuning_wf_values[1])
+
+    t_rabi.append(sum(wf_durations_rabi))
+    t_detuning.append(sum(wf_durations_detuning))
+    waveform_values_rabi.append(rabi_wf_values[2])
+    waveform_values_detuning.append(detuning_wf_values[2])
+
+    # Plotting the waveform
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    ax1.plot(t_rabi, waveform_values_rabi, label="Waveform")
+    ax1.xlabel("Time (μs)")
+    ax1.ylabel("Ω/2π (MHz)")
+    ax1.title("Piecewise Linear RX Rabi Pulse for " + name)
+    ax1.legend()
+    ax1.grid(True)
+
+    ax2.plot(t_rabi, waveform_values_rabi, label="Waveform")
+    ax2.xlabel("Time (μs)")
+    ax2.ylabel("Δ/2π (MHz)")
+    ax2.title("Piecewise Linear RX Detuning Pulse for " + name)
+    ax2.legend()
+    ax2.grid(True)
+
+    # Saving the figure
+    # plt.savefig('./gate_pulses/' + name + '.jpg')
+    """
+
+    return sum(wf_durations_rabi), angle, [rabi_max, 0]
 
 def rz(data):
     """
@@ -98,70 +165,3 @@ def rz(data):
     """
 
     return sum(wf_durations), angle, [0, detuning_max]
-
-def rx(data):
-    """
-    Constructing a piecewise-linear waveform of a Rabi frequency pulse to drive a rotation about the y-axis.
-    We assume the Aquila parameters that 0.05 microseconds is the minimum timestep
-    """
-    if "steane" and "ancilla" in data:
-        angle = data["rotation"]
-        name = f"id({data['id']})_steane({data['steane']})_ancilla({data['ancilla']})_op({data['op']})_angle({angle})"
-    else: 
-        angle = data["angle"]
-        name = f"id({data['id']})_op({data['op']})_angle({angle})"
-    
-    # driving a rotation of angle*pi
-    rabi_max = 12.5
-    plateau_time_rabi = (abs(angle) * np.pi - 0.625) / 12.5
-    wf_durations_rabi = [0.05, plateau_time_rabi, 0.05]
-    rabi_wf_values = [0.0, rabi_max, 0.0]
-
-    # phase shit of pi / 2
-    detuning_max = 10
-    plateau_time_detuning = (np.pi / 2 - 0.625) / detuning_max
-    wf_durations_detuning = [0.05, plateau_time_detuning, 0.05]
-    detuning_wf_values = [0.0, detuning_max, 0.0]
-
-    """
-    t_rabi = [0]
-    t_detuning = [0]
-    waveform_values_rabi = [rabi_wf_values[0]]
-    waveform_values_detuning = [detuning_wf_values[0]]
-
-    t_rabi.append(wf_durations_rabi[0])
-    t_detuning.append(wf_durations_detuning[0])
-    waveform_values_rabi.append(rabi_wf_values[1])
-    waveform_values_detuning.append(detuning_wf_values[1])
-
-    t_rabi.append(wf_durations_rabi[0] + wf_durations_rabi[1])
-    t_detuning.append(wf_durations_detuning[0] + wf_durations_detuning[1])
-    waveform_values_rabi.append(rabi_wf_values[1])
-    waveform_values_detuning.append(detuning_wf_values[1])
-
-    t_rabi.append(sum(wf_durations_rabi))
-    t_detuning.append(sum(wf_durations_detuning))
-    waveform_values_rabi.append(rabi_wf_values[2])
-    waveform_values_detuning.append(detuning_wf_values[2])
-
-    # Plotting the waveform
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-    ax1.plot(t_rabi, waveform_values_rabi, label="Waveform")
-    ax1.xlabel("Time (μs)")
-    ax1.ylabel("Ω/2π (MHz)")
-    ax1.title("Piecewise Linear RX Rabi Pulse for " + name)
-    ax1.legend()
-    ax1.grid(True)
-
-    ax2.plot(t_rabi, waveform_values_rabi, label="Waveform")
-    ax2.xlabel("Time (μs)")
-    ax2.ylabel("Δ/2π (MHz)")
-    ax2.title("Piecewise Linear RX Detuning Pulse for " + name)
-    ax2.legend()
-    ax2.grid(True)
-
-    # Saving the figure
-    # plt.savefig('./gate_pulses/' + name + '.jpg')
-    """
-
-    return sum(wf_durations_rabi), angle, [rabi_max, detuning_max]
