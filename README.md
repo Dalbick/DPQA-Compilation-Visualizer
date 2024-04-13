@@ -1,16 +1,12 @@
-# OLSQ-DPQA Compiler
-Optimal Layout Synthesizer of Quantum Circuits for Dynamically Field-Programmable Qubits Array.
-Open source under the BSD 3-Clause license.
+# Atomique Solution for QuEra's Challenge -- QRISE 2024
 
-Repo structure:
-- `run.py` is an example of using the compiler. Refer to `python run.py -h` for options.
+Key files:
+- `MasterRunner.py` compiles all the following files from a single class. 
 - `solve.py` contains the class `DPQA` where we encode the compilation problem to SMT, and use `z3-solver` to solve it.
-- `graphs.json` contains some random 3-regular graphs.
-- `animation.py` contains the class `CodeGen` that generates DPQA instructions (five types `Init`, `Rydberg`, `Activate`, `Deactivate`, and `Move`), and the class `Animator` that generates animations from DPQA instructions. Refer to `python animation.py -h` for options.
-- `results/` is the default directory for the results.
-  - `results/smt/` contains the output of SMT variable assignments.
-  - `results/code/` contains the code files generated from SMT output.
-  - `results/animations/` contains a few example animations generated from code files.
+- `animation.py` contains the class `CodeGen` that generates DPQA instructions (five types `Init`, `Rydberg`, `Raman`, `Activate`, `Deactivate`, and `Move`), and the class `Animator` that generates animations from DPQA instructions.
+- `transpiler.py` takes in a qiskit QuantumCircuit object and lists the gates and associated parameters in a readable format
+- `circuit_figure.py` generates a drawing of the qiskit circuit while maintaining SMT order
+- `steane.py` turns the qubits in a generic circuit into logical bits ()
 
 How to use the compiler:
 - We used a Python 3 environment with `z3-solver`, `networkx`, and `python-sat`, and `matplotlib`. The Python scripts are run in the root directory of the repo.

@@ -273,7 +273,7 @@ class DPQA:
             r: Sequence[Sequence[Any]],
     ):
         for q in range(self.n_q):
-            for s in range(1, num_stage):
+            for s in range(0, num_stage):
                 # this should in fact start from 1, assume at stage s=0 that given circuit is within spatial constraints
                 # starting from s=1 since the values with s=0 are loaded.
                 (self.dpqa).add(x[q][s] >= 0)

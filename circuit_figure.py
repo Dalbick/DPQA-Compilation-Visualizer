@@ -31,7 +31,7 @@ def generate_figure(dir: str, name: str, num_qubits):
             if g["op"] == "m":
                 qc.measure(g["q0"], g["q0"])
 
-    qc.draw(output="mpl")
+    qc.draw(output="mpl", fold=100)
     plt.savefig(dir + "circuit_" + name[:-5] + ".jpg")
     return dir + "circuit_" + name[:-5] + ".jpg"
 

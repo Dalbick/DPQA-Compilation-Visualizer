@@ -2367,7 +2367,7 @@ class Animator:
                 self.texts = [
                     self.ax.text(inst["state"]["qubits"][q_id]["x"] + 1,
                              inst["state"]["qubits"][q_id]["y"] + 1,
-                             f"duration={inst["raman_duration"]:.3f}, angle={inst["angle"]:.3f}, rabi={inst["rabi_max"]:.3f}, detuning={inst["detuning_max"]:.3f}")
+                             f"duration={inst['raman_duration']:.3f}, angle={inst['angle']:.3f}, rabi={inst['rabi_max']:.3f}, detuning={inst['detuning_max']:.3f}")
                 ]
             self.qubit_scat.set_offsets(
                 [(q["x"], q["y"]) for q in inst["state"]["qubits"]]
