@@ -94,6 +94,7 @@ def initialize_steane(dir: str, name: str):
                 steane_layer_qubits[0][0]["r"] -= (
                     i_q + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
                 )
+                steane_layer_qubits
 
                 # move physical qubits to Layer 2 coordinates
                 steane_layer_qubits[1][0]["id"] += i_q * (ancilla + 1)
@@ -251,6 +252,9 @@ def initialize_steane(dir: str, name: str):
             0,
             {"qubits": steane_layer_qubits[layer], "gates": steane_layer_gates[layer]},
         )
+
+    steane = smt | steane
+    steane['n_q'] *= 14
     with open(dir + "steane_" + name, "w") as f:
         json.dump(steane, f)
 

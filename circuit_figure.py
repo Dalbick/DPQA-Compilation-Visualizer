@@ -26,7 +26,7 @@ def generate_figure(dir: str, name: str, num_qubits):
                 qc.rz(g["angle"] * np.pi, g["q0"])
                 qc.barrier()
             if g["op"] == "cz":
-                qc.cx(g["q0"], g["q1"])
+                qc.cz(g["q0"], g["q1"])
                 qc.barrier()
             if g["op"] == "m":
                 qc.measure(g["q0"], g["q0"])
