@@ -5,6 +5,7 @@ from typing import Any
 from steane import initialize_steane
 from circuit_figure import generate_figure
 from animation import CodeGen, Animator, PT_MICRON
+from transpiler import DPQAtranspile
 import ffmpeg
 import os
 
@@ -20,14 +21,20 @@ class Runner:
     where single-qubit gate pulses play on adjacent qubits which is not currently constrained by the SMT solver.
     """
 
-    def __init__(self, name: str, dir: str):
+    def __init__(self, name: str, dir: str, qc, num_qubits: int):
         self.dir = dir
         self.name = name
         self.with_steane = False
+        self.qc = qc
+        self.num_qubits = num_qubits
 
     def decompose(self):
-        # TODO: run Kevin's function
-        pass
+        DPQAtranspile(self.qc, 
+                      "json", 
+                      self.num_qubits, 
+                      basis_gates=['rx', 'ry', 'cz'],
+                      show=False, 
+                      jsonpath=self.dir + self.name, optimization_level=2)
 
     def parse_json(self):
         """
@@ -246,9 +253,4 @@ class Runner:
             os.remove(animation_init.animation_file)
 
 
-run = Runner(name="QRISE.json", dir="./")
-
-run.parse_json()
-run.SMT()
-run.singles_reinsert()
-run.animate()
+# run = Runner(name="QRISE.json", dir="./")
