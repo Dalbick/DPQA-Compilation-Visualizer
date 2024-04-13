@@ -14,7 +14,7 @@ import numpy as np
 #User may define a quantum circuit in this block
 #Example of one as follows:
 
-def DPQAtranspile(qc, outputformat, num_qubits, backend=None, basis_gates=['rx', 'ry', 'rz', 'cz'], show=False, jsonpath=None, optimization_level=2):
+def DPQAtranspile(qc, outputformat, num_qubits, backend=None, basis_gates=['rx', 'ry', 'cz'], show=False, jsonpath=None, optimization_level=2):
     if (outputformat != "string" and outputformat != "json" and outputformat != "dict"):
         print("outputformat must be strong, json, or dict")
         return
