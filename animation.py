@@ -36,12 +36,12 @@ T_RYDBERG = 0.15  # microseconds for Rydberg
 T_ACTIVATE = 50  # microseconds for (de)activating AOD
 
 # constants for circuit animation
-RECTANGLE_TOP = 50 # rectangele top padding
-RECTANGLE_LEFT = 166.5 # rectangle initial left padding
-STAGE_WIDTH = 100 # width between two consecutive barriers
-QUBIT_HEIGHT = 50 # height that each qubit adds to the circuit
-ADDITIONAL_HEIGHT = 35 # rectangle height for 0-qubit circuit
-BARRIER_WIDTH = 28.5 # width of each barrier
+RECTANGLE_TOP = 50  # rectangele top padding
+RECTANGLE_LEFT = 368.5  # rectangle initial left padding
+STAGE_WIDTH = 100  # width between two consecutive barriers
+QUBIT_HEIGHT = 70  # height that each qubit adds to the circuit
+ADDITIONAL_HEIGHT = -5  # rectangle height for 0-qubit circuit
+BARRIER_WIDTH = 28.5  # width of each barrier
 
 
 # class for physical entities: qubits and AOD rows/cols
@@ -866,7 +866,9 @@ class Raman(Inst):
         qubit_objs: Sequence[Qubit],
         gate: Mapping[str, int | str],
     ):
-        super().__init__("Raman", prefix=f'Raman_{s}_{gate["q0"]}_{gate["op"]}', stage=s)
+        super().__init__(
+            "Raman", prefix=f'Raman_{s}_{gate["q0"]}_{gate["op"]}', stage=s
+        )
         self.verify(gate, qubit_objs)
         params = self.compute_parameters(gate)
         super().write_code(col_objs, row_objs, qubit_objs, {"gate": gate} | params)
@@ -878,7 +880,7 @@ class Raman(Inst):
     # decomposes a single-qubit rotation into parameters for the architechture
     @staticmethod
     def compute_parameters(gate: Mapping[str, int | str]) -> dict[str, int | float]:
-        if gate['op'] == 'm':
+        if gate["op"] == "m":
             return {}
         param = (
             rx(gate)
@@ -895,7 +897,7 @@ class Raman(Inst):
             "rabi_max": param[2][0],
             "detuning_max": param[2][1],
         }
-    
+
 
 class Measurement(Inst):
     def __init__(
@@ -1467,7 +1469,13 @@ class CodeGen:
     corresponding to a DPQA instruction defined above.
     """
 
-    def __init__(self, file_name: str, no_transfer: bool = False, dir: str = None, steane: bool = False):
+    def __init__(
+        self,
+        file_name: str,
+        no_transfer: bool = False,
+        dir: str = None,
+        steane: bool = False,
+    ):
         self.steane = steane
         self.read_compiled(file_name)
         program = self.builder(no_transfer)
@@ -1483,7 +1491,7 @@ class CodeGen:
             json.dump(program.emit(), f)
 
     def read_compiled(self, filename: str):
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             data = json.load(f)
         self.n_q = data["n_q"]
         self.x_high = data["n_x"]
@@ -2126,7 +2134,7 @@ class Animator:
         show_graph: bool = False,
         edges: Union[Sequence[Sequence[int]], None] = None,
         dir: Union[str, None] = None,
-        circuit_image: str | None = None
+        circuit_image: str | None = None,
     ):
         """
         Args:
@@ -2263,9 +2271,16 @@ class Animator:
             self.circuit_ax.set_title("The circuit diagram")
             im = plt.imread(self.circuit_image)
             self.circuit_ax.imshow(im)
-            self.circuit_ax.axis('off')
-            
-            self.patch = patches.Rectangle((RECTANGLE_LEFT, RECTANGLE_TOP), STAGE_WIDTH, QUBIT_HEIGHT * self.n_q + ADDITIONAL_HEIGHT, color='red', fill=False, lw=5)
+            self.circuit_ax.axis("off")
+
+            self.patch = patches.Rectangle(
+                (RECTANGLE_LEFT, RECTANGLE_TOP),
+                STAGE_WIDTH,
+                QUBIT_HEIGHT * self.n_q + ADDITIONAL_HEIGHT,
+                color="red",
+                fill=False,
+                lw=5,
+            )
             self.patch.set_visible(False)
             self.circuit_ax.add_patch(self.patch)
         else:
@@ -2365,9 +2380,11 @@ class Animator:
             )
             if inst["gate"]["op"] != "m":
                 self.texts = [
-                    self.ax.text(inst["state"]["qubits"][q_id]["x"] + 1,
-                             inst["state"]["qubits"][q_id]["y"] + 1,
-                             f"duration={inst['raman_duration']:.3f}, angle={inst['angle']:.3f}, rabi={inst['rabi_max']:.3f}, detuning={inst['detuning_max']:.3f}")
+                    self.ax.text(
+                        inst["state"]["qubits"][q_id]["x"] + 1,
+                        inst["state"]["qubits"][q_id]["y"] + 1,
+                        f"duration={inst['raman_duration']:.3f}, angle={inst['angle']:.3f}, rabi={inst['rabi_max']:.3f}, detuning={inst['detuning_max']:.3f}",
+                    )
                 ]
             self.qubit_scat.set_offsets(
                 [(q["x"], q["y"]) for q in inst["state"]["qubits"]]
@@ -2507,7 +2524,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=str)
     parser.add_argument("circuit_image_file", nargs="?", type=str)
-    parser.add_argument("--steane", help="input file implements steane code", action="store_true")
+    parser.add_argument(
+        "--steane", help="input file implements steane code", action="store_true"
+    )
     parser.add_argument("--scaling", help="scaling factor of the animation", type=int)
     parser.add_argument("--font", help="font size in the animation", type=int)
     parser.add_argument("--ffmpeg", help="custom ffmpeg path", type=str)
@@ -2524,7 +2543,7 @@ if __name__ == "__main__":
 
     with open(args.input_file, "r") as f:
         data = json.load(f)
-    
+
     if args.steane:
         data["layers"] = data["layers"][:-1]
 
@@ -2532,21 +2551,20 @@ if __name__ == "__main__":
     # init_data["layers"] = init_data["layers"][:6]
     # steane_data["layers"] = steane_data["layers"][6:]
 
-    
     codegen = CodeGen(
-            args.input_file,
-            no_transfer=data["no_transfer"],
-            dir=args.dir if args.dir else "./results/code/",
-            steane=args.steane
-        )
+        args.input_file,
+        no_transfer=data["no_transfer"],
+        dir=args.dir if args.dir else "./results/code/",
+        steane=args.steane,
+    )
     Animator(
-            codegen.code_full_file,
-            scaling_factor=args.scaling if args.scaling else PT_MICRON,
-            font=20,
-            ffmpeg=args.ffmpeg if args.ffmpeg else "ffmpeg",
-            real_speed=args.realSpeed,
-            show_graph=False,
-            edges=[],
-            dir=args.dir if args.dir else "./results/animations/",
-            circuit_image=args.circuit_image_file or None
-        )
+        codegen.code_full_file,
+        scaling_factor=args.scaling if args.scaling else PT_MICRON,
+        font=20,
+        ffmpeg=args.ffmpeg if args.ffmpeg else "ffmpeg",
+        real_speed=args.realSpeed,
+        show_graph=False,
+        edges=[],
+        dir=args.dir if args.dir else "./results/animations/",
+        circuit_image=args.circuit_image_file or None,
+    )
