@@ -36,11 +36,13 @@ T_RYDBERG = 0.15  # microseconds for Rydberg
 T_ACTIVATE = 50  # microseconds for (de)activating AOD
 
 # constants for circuit animation
-RECTANGLE_TOP = 50  # rectangele top padding
-RECTANGLE_LEFT = 368.5  # rectangle initial left padding
+RECTANGLE_TOP_0 = 33  # rectangle initial top padding
+RECTANGLE_TOP_SLOPE = 8.5  # additional rectangle top padding for each qubit
+RECTANGLE_LEFT_0 = -57.5  # rectangle initial left padding
+RECTANGLE_LEFT_SLOPE = 21.3  # additional rectangle left padding for each gate
 STAGE_WIDTH = 100  # width between two consecutive barriers
-QUBIT_HEIGHT = 70  # height that each qubit adds to the circuit
-ADDITIONAL_HEIGHT = -5  # rectangle height for 0-qubit circuit
+QUBIT_HEIGHT = 66.5  # height that each qubit adds to the circuit
+ADDITIONAL_HEIGHT = 2  # rectangle height for 0-qubit circuit
 BARRIER_WIDTH = 28.5  # width of each barrier
 
 
@@ -2135,6 +2137,8 @@ class Animator:
         edges: Union[Sequence[Sequence[int]], None] = None,
         dir: Union[str, None] = None,
         circuit_image: str | None = None,
+        n_g: int | None = None,
+        steane: bool = False,
     ):
         """
         Args:
@@ -2151,11 +2155,18 @@ class Animator:
                 graph. Defaults to None.
             dir (str | None, optional): dir to save output. Defaults to None.
         """
+        if n_g is None and circuit_image:
+            raise ValueError(
+                "Expected number of gates to be supplied with the circuit image"
+            )
+        self.n_g = n_g
+
         matplotlib.use("Agg")
         matplotlib.rcParams.update({"font.size": font})
         plt.rcParams["animation.ffmpeg_path"] = ffmpeg
         self.show_graph = show_graph
         self.show_circuit = not circuit_image is None
+        self.steane = steane
         self.circuit_image = circuit_image
         self.graph_edges = edges
         self.read_files(code_file_name)
@@ -2256,7 +2267,7 @@ class Animator:
         self.Y_LOW = -Y_LOW_PAD
         self.Y_HIGH = (self.y_high - 1) * Y_SITE_SEP + Y_HIGH_PAD
 
-        if self.show_circuit:
+        if self.show_circuit or self.steane:
             # 2 rows 1 col, DPQA on the bottom, the graph on the top
             self.fig, (self.ax, self.circuit_ax) = plt.subplots(
                 2,
@@ -2268,21 +2279,8 @@ class Animator:
                 ),
             )
             self.fig.tight_layout()
-            self.circuit_ax.set_title("The circuit diagram")
-            im = plt.imread(self.circuit_image)
-            self.circuit_ax.imshow(im)
             self.circuit_ax.axis("off")
 
-            self.patch = patches.Rectangle(
-                (RECTANGLE_LEFT, RECTANGLE_TOP),
-                STAGE_WIDTH,
-                QUBIT_HEIGHT * self.n_q + ADDITIONAL_HEIGHT,
-                color="red",
-                fill=False,
-                lw=5,
-            )
-            self.patch.set_visible(False)
-            self.circuit_ax.add_patch(self.patch)
         else:
             (
                 self.fig,
@@ -2293,6 +2291,25 @@ class Animator:
                     (self.Y_HIGH - self.Y_LOW) * px,
                 )
             )
+
+        if self.show_circuit:
+            self.circuit_ax.set_title("The circuit diagram")
+            im = plt.imread(self.circuit_image)
+            self.circuit_ax.imshow(im)
+
+            self.patch = patches.Rectangle(
+                (
+                    RECTANGLE_LEFT_0 + RECTANGLE_LEFT_SLOPE * self.n_g,
+                    RECTANGLE_TOP_0 + RECTANGLE_TOP_SLOPE * self.n_q,
+                ),
+                STAGE_WIDTH,
+                QUBIT_HEIGHT * self.n_q + ADDITIONAL_HEIGHT,
+                color="red",
+                fill=False,
+                lw=5,
+            )
+            self.patch.set_visible(False)
+            self.circuit_ax.add_patch(self.patch)
 
         self.title = self.ax.set_title("")
         self.ax.set_xlim([self.X_LOW, self.X_HIGH])

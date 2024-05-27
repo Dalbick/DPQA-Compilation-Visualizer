@@ -16,7 +16,7 @@ theta = 2 * np.arccos(1 / np.sqrt(3))
 
 num_qubits = 3
 
-qc = QuantumCircuit(3, 1)
+qc = QuantumCircuit(num_qubits, 1)
 
 qc.ry(theta, 0)
 qc.ch(0, 1)

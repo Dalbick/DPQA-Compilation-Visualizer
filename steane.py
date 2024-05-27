@@ -4,6 +4,7 @@ import copy
 NUM_STEANE_LAYERS = 5
 NUM_PHYSICAL_QUBITS = 7
 
+
 # if qubits start at same position (within atomic separation R_b) Steane code encoding will not be successful
 # we move one of the qubits from any such pair to the right and add this layer to be deleted later
 def resolve_duplicates(qubits):
@@ -65,40 +66,46 @@ def initialize_steane(dir: str, name: str):
     id_padding = lambda x: 14 * x
     for q in smt["layers"][0]["qubits"]:
         q["id"] = id_padding(q["id"])
-    print(q["id"] for q in smt["layers"][0]["qubits"])
+    # print(q["id"] for q in smt["layers"][0]["qubits"])
 
     # check if this is runnable on Aquila
     if any(q["x"] + q["c"] + q["y"] + q["r"] > 302 for q in smt["layers"][0]["qubits"]):
         print(
             "WARNING: the dimensions required to implement error correction are too large to run on Aquila"
-        ) 
+        )
 
     # Produce all 5 layers for Steane code generation + 1 layer for movement to readout zone.
-    
+
     # create a gate and qubit array to be inserted at the top of the SMT output
     steane_layer_gates = [[] for _ in range(NUM_STEANE_LAYERS)]
     steane_layer_qubits = [[] for _ in range(NUM_STEANE_LAYERS)]
 
     for logical_num, q in enumerate(smt["layers"][0]["qubits"]):
-        for i in range(NUM_PHYSICAL_QUBITS*2-1,-1,-1):
+        for i in range(NUM_PHYSICAL_QUBITS * 2 - 1, -1, -1):
             # get all info from current logical qubit
             for k in range(NUM_STEANE_LAYERS):
-                steane_layer_qubits[k].insert(0,copy.deepcopy(q))
+                steane_layer_qubits[k].insert(0, copy.deepcopy(q))
 
             ancilla = 0 if i < 7 else 1
             i_q = i % 7
 
             #  Layer 1: preparation to Hadamard and CZ relevant qubits
             steane_layer_qubits[0][0]["id"] += i
-            steane_layer_qubits[0][0]["x"] -= 4 if i_q in [1, 3, 4, 5] else 3 if i_q in [6,0] else 2
+            steane_layer_qubits[0][0]["x"] -= (
+                4 if i_q in [1, 3, 4, 5] else 3 if i_q in [6, 0] else 2
+            )
             steane_layer_qubits[0][0]["y"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
-            steane_layer_qubits[0][0]["c"] -= 4 if i_q in [5,3] else 3 if i_q in [4,1] else 2 if i_q in [6,0] else 1
+            steane_layer_qubits[0][0]["c"] -= (
+                4
+                if i_q in [5, 3]
+                else 3 if i_q in [4, 1] else 2 if i_q in [6, 0] else 1
+            )
             steane_layer_qubits[0][0]["r"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
-            steane_layer_qubits[0][0]["a"] = 0 if i_q in [6,3,2] else 1
+            steane_layer_qubits[0][0]["a"] = 0 if i_q in [6, 3, 2] else 1
 
             # Layer 2: CZs
             steane_layer_qubits[1][0]["id"] += i
@@ -106,11 +113,13 @@ def initialize_steane(dir: str, name: str):
             steane_layer_qubits[1][0]["y"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
-            steane_layer_qubits[1][0]["c"] -= 4 if i_q in [5,3] else 3 if i_q in [4,1] else 2 if i_q == 6 else 1
+            steane_layer_qubits[1][0]["c"] -= (
+                4 if i_q in [5, 3] else 3 if i_q in [4, 1] else 2 if i_q == 6 else 1
+            )
             steane_layer_qubits[1][0]["r"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
-            steane_layer_qubits[1][0]["a"] = 0 if i_q in [6,3] else 1
+            steane_layer_qubits[1][0]["a"] = 0 if i_q in [6, 3] else 1
 
             # Layer 3: CZs
             steane_layer_qubits[2][0]["id"] += i
@@ -120,11 +129,13 @@ def initialize_steane(dir: str, name: str):
             steane_layer_qubits[2][0]["y"] -= (
                 2 * ancilla if i_q == 6 else 1 + 2 * ancilla
             )
-            steane_layer_qubits[2][0]["c"] -= 4 if i_q in [5,3] else 2 if i_q in [4,1] else 3 if i_q == 6 else 1
+            steane_layer_qubits[2][0]["c"] -= (
+                4 if i_q in [5, 3] else 2 if i_q in [4, 1] else 3 if i_q == 6 else 1
+            )
             steane_layer_qubits[2][0]["r"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
-            steane_layer_qubits[2][0]["a"] = 0 if i_q in [6,3,2,1] else 1
+            steane_layer_qubits[2][0]["a"] = 0 if i_q in [6, 3, 2, 1] else 1
 
             # Layer 3: Hadamards
             steane_layer_qubits[3][0]["id"] += i
@@ -132,9 +143,11 @@ def initialize_steane(dir: str, name: str):
                 1 if i_q in [0, 2] else 2 if i_q in [1, 4] else 3 if i_q == 6 else 4
             )
             steane_layer_qubits[3][0]["y"] -= (
-                1 + 2 * ancilla if i_q in [3,2,1] else 2*ancilla
+                1 + 2 * ancilla if i_q in [3, 2, 1] else 2 * ancilla
             )
-            steane_layer_qubits[3][0]["c"] -= 1 if i_q in [0, 2] else 2 if i_q in [1, 4] else 3 if i_q == 6 else 4
+            steane_layer_qubits[3][0]["c"] -= (
+                1 if i_q in [0, 2] else 2 if i_q in [1, 4] else 3 if i_q == 6 else 4
+            )
             steane_layer_qubits[3][0]["r"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
@@ -145,10 +158,10 @@ def initialize_steane(dir: str, name: str):
             steane_layer_qubits[4][0]["x"] -= (
                 1 if i_q in [0, 2] else 2 if i_q in [1, 4] else 3 if i_q == 6 else 4
             )
-            steane_layer_qubits[4][0]["y"] -= (
-                3 if i_q in [3,1,2] else 2 
+            steane_layer_qubits[4][0]["y"] -= 3 if i_q in [3, 1, 2] else 2
+            steane_layer_qubits[4][0]["c"] -= (
+                1 if i_q in [0, 2] else 2 if i_q in [1, 4] else 3 if i_q == 6 else 4
             )
-            steane_layer_qubits[4][0]["c"] -= 1 if i_q in [0, 2] else 2 if i_q in [1, 4] else 3 if i_q == 6 else 4
             steane_layer_qubits[4][0]["r"] -= (
                 1 + 2 * ancilla if i_q in [2, 1, 3] else 2 * ancilla
             )
@@ -264,14 +277,14 @@ def initialize_steane(dir: str, name: str):
     # fault-tolerantly CNOT the ancillas with the reversible logical bits. Ancilla bits in SLM.
     for i_g_3 in [
         num
-        for num in range(14*i,(14*i)+7)
+        for num in range(14 * i, (14 * i) + 7)
         for i in range(0, len(smt["layers"][0]["qubits"]) * 2)
     ]:
         steane_layer_gates[4].append(
             {
                 "id": 0,
                 "q0": i_g_3,
-                "q1": i_g_3+7,
+                "q1": i_g_3 + 7,
                 "op": "cz",
                 "angle": 0,
             }
@@ -280,14 +293,14 @@ def initialize_steane(dir: str, name: str):
     steane = {"name": f"{smt['name']}_steane", "layers": []}
 
     # dump to steane output for animation processing on initialization stages
-    for layer in range(NUM_STEANE_LAYERS-1, -1, -1):
+    for layer in range(NUM_STEANE_LAYERS - 1, -1, -1):
         steane["layers"].insert(
             0,
             {"qubits": steane_layer_qubits[layer], "gates": steane_layer_gates[layer]},
         )
 
     steane = smt | steane
-    steane['n_q'] *= 14
+    steane["n_q"] *= 14
     with open(dir + "steane_" + name, "w") as f:
         json.dump(steane, f)
 
