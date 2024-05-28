@@ -275,20 +275,20 @@ def initialize_steane(dir: str, name: str):
         )
 
     # fault-tolerantly CNOT the ancillas with the reversible logical bits. Ancilla bits in SLM.
-    for i_g_3 in [
-        num
-        for num in range(14 * i, (14 * i) + 7)
-        for i in range(0, len(smt["layers"][0]["qubits"]) * 2)
-    ]:
-        steane_layer_gates[4].append(
-            {
-                "id": 0,
-                "q0": i_g_3,
-                "q1": i_g_3 + 7,
-                "op": "cz",
-                "angle": 0,
-            }
-        )
+    for i in range(0, len(smt["layers"][0]["qubits"])):
+        for i_g_3 in [
+            num
+            for num in range(14*i,(14*i)+7)
+        ]:
+            steane_layer_gates[4].append(
+                {
+                    "id": 0,
+                    "q0": i_g_3,
+                    "q1": i_g_3+7,
+                    "op": "cz",
+                    "angle": 0,
+                }
+            )
 
     steane = {"name": f"{smt['name']}_steane", "layers": []}
 
