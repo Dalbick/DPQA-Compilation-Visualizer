@@ -29,12 +29,15 @@ class Runner:
         self.num_qubits = num_qubits
 
     def decompose(self):
-        DPQAtranspile(self.qc, 
-                      "json", 
-                      self.num_qubits, 
-                      basis_gates=['rx', 'ry', 'cz'],
-                      show=False, 
-                      jsonpath=self.dir + self.name, optimization_level=2)
+        DPQAtranspile(
+            self.qc,
+            "json",
+            self.num_qubits,
+            basis_gates=["rx", "ry", "cz"],
+            show=False,
+            jsonpath=self.dir + self.name,
+            optimization_level=2,
+        )
 
     def parse_json(self):
         """
@@ -171,7 +174,9 @@ class Runner:
                 }
             )
 
-        # standardize output for two-qubit gates
+        self.n_g = 0
+
+        # standardize output for two-qubit gates and count all gates
         for layer in range(len(smt["layers"])):
             for g in smt["layers"][layer]["gates"]:
                 if layer in id_mapping:
@@ -195,10 +200,27 @@ class Runner:
     def animate(self):
         main_filename = self.dir + "smt_" + self.name
         steane_filename = self.dir + "steane_smt_" + self.name
-        image_path = generate_figure(self.dir, "smt_" + self.name, 7)
+        image_path = generate_figure(self.dir, "smt_" + self.name, self.n_q)
 
         with open(main_filename, "r") as f:
             main = json.load(f)
+
+        if self.with_steane:
+            with open(main_filename, "r") as f:
+                main = json.load(f)
+
+            padding = lambda x: (x + 1) * 5
+            for l in range(len(main["layers"])):
+                for i, q in enumerate(main["layers"][l]["qubits"]):
+                    main["layers"][l]["qubits"][i] |= {
+                        "x": padding(q["x"]),
+                        "c": padding(q["c"]),
+                        "y": padding(q["y"]),
+                        "r": padding(q["r"]),
+                    }
+
+            with open(main_filename, "w") as f:
+                json.dump(main, f)
 
         codegen_main = CodeGen(
             "smt_" + self.name,
@@ -217,24 +239,10 @@ class Runner:
             edges=[],
             dir=self.dir,
             circuit_image=image_path,
+            n_g=self.n_g,
         )
 
         if self.with_steane:
-            with open(steane_filename, "r") as f:
-                init = json.load(f)
-
-            padding = (
-                lambda x: (x + 1) * 5
-            )
-            for l in range(len(init["layers"])):
-                for q in init["layers"][l]["qubits"]:
-                    q["x"], q["c"], q["y"], q["r"] = (
-                        padding(q["x"]),
-                        padding(q["c"]),
-                        padding(q["y"]),
-                        padding(q["r"]),
-                    )
-
             codegen_init = CodeGen(
                 "steane_smt_" + self.name,
                 no_transfer=main["no_transfer"],
@@ -251,17 +259,18 @@ class Runner:
                 show_graph=False,
                 edges=[],
                 dir=self.dir,
+                steane=True,
             )
 
             main_video = ffmpeg.input(animation_main.animation_file)
             init_video = ffmpeg.input(animation_init.animation_file)
 
-            joined = ffmpeg.concat([init_video.video, main_video.video]).node()
+            joined = ffmpeg.concat(init_video.video, main_video.video).node
             ffmpeg.output(
                 joined[0],
-                joined[1],
-                animation_main.animation_file,
-            ).run()
+                animation_main.animation_file[:-4] + "_full.mp4",
+                loglevel="error",
+            ).run(overwrite_output=True)
             os.remove(animation_init.animation_file)
 
 
